@@ -5,13 +5,14 @@ const JSDOM = _jsdom.JSDOM;
 const scheme = "http://"
 const host = "";
 const printer_status_path = "/PRESENTATION/ADVANCED/INFO_PRTINFO/TOP";
-const maint_info_path = "PRESENTATION/ADVANCED/INFO_MENTINFO/TOP";
+const maint_info_path = "/PRESENTATION/ADVANCED/INFO_MENTINFO/TOP";
 
 async function main() {
     try {
-        const { tankinfo } = await readPrinterStatus();
+        const { inklevel } = await readPrinterStatus();
+        const {pagehist} = await readPrinterMaintInfo();
 
-        console.log(tankinfo);
+        console.log(inklevel, pagehist);
     } catch (error) {
         throw error;
     }
@@ -48,5 +49,41 @@ async function readPrinterStatus() {
         })(); // other ink statuses
         return { name, height, inkStatus };
     });
-    return { tankinfo };
+    const inklevel = {
+        BK: tankinfo.find(tank => tank.name == "BK").height,
+        C: tankinfo.find(tank => tank.name == "C").height,
+        M: tankinfo.find(tank => tank.name == "M").height,
+        Y: tankinfo.find(tank => tank.name == "Y").height,
+        mb: tankinfo.find(tank => tank.name == "mb").height
+    }
+    return { tankinfo, inklevel };
+}
+
+async function readPrinterMaintInfo(){
+    const printer_maint_url = `${scheme}${host}${maint_info_path}`;
+    const printer_maint_dom = await JSDOM.fromURL(printer_maint_url);
+    const printer_maint_doc = printer_maint_dom.window.document;
+
+    const groups = printer_maint_doc.querySelectorAll("fieldset.group");
+
+    const pagesBySizeGroup = groups[1];
+    const pagesBySizeRows = pagesBySizeGroup.querySelectorAll("table>tbody>tr");
+    const pagesBySize = [...pagesBySizeRows].map(row => {
+        const label = row.children[0].textContent;
+        const ssbw = parseInt(row.children[1].textContent, 10);
+        const sscolor = parseInt(row.children[2].textContent, 10);
+        const dsbw = parseInt(row.children[3].textContent, 10);
+        const dscolor = parseInt(row.children[4].textContent, 10);
+
+        return {label, ssbw, sscolor, dsbw, dscolor};
+    });
+
+    const pagehist = pagesBySize.reduce((acc, cur)=>({
+        ssbw: acc.ssbw + cur.ssbw,
+        sscolor: acc.sscolor + cur.sscolor,
+        dsbw: acc.dsbw + cur.dsbw,
+        dscolor: acc.dscolor + cur.dscolor
+    }));
+
+    return {pagehist};
 }
