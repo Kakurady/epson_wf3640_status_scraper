@@ -1,0 +1,14 @@
+{
+  "name": "wf3640_status_scraper",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kakurady",
+  "license": "ISC",
+  "dependencies": {
+    "jsdom": "^11.12.0"
+  }
+}
