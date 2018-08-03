@@ -1,11 +1,17 @@
 //import {JSDOM} from 'jsdom';
 import _jsdom from 'jsdom';
 const JSDOM = _jsdom.JSDOM;
+import sqlite from 'sqlite';
+import _path from 'path';
+const pathjoin = _path.join;
+const dirname = _path.dirname;
 
 const scheme = "http://"
 const host = "";
 const printer_status_path = "/PRESENTATION/ADVANCED/INFO_PRTINFO/TOP";
 const maint_info_path = "/PRESENTATION/ADVANCED/INFO_MENTINFO/TOP";
+
+const dbfile = process.argv[2] || "log.sqlite";
 
 async function main() {
     try {
@@ -15,6 +21,8 @@ async function main() {
         const { pagehist, pagesByFunction } = await readPrinterMaintInfo();
         console.log(pagehist);
         console.log(pagesByFunction);
+        logToDB(new Date(), inklevel, pagehist, pagesByFunction);
+        console.log();
     } catch (error) {
         throw error;
     }
@@ -106,4 +114,76 @@ async function readPrinterMaintInfo() {
     }
 
     return { pagesBySize, pagehist, pagesByFunction };
+}
+
+/**
+ * 
+ * @param {Date} date 
+ * @param {{BK: number, C:number, M:number, Y:number, mb:number}} inklevel 
+ * @param pagehist 
+ * @param pagesByFunction 
+ */
+async function logToDB(date, inklevel, pagehist, pagesByFunction){
+    const migrationsPath = pathjoin(dirname(process.argv[1]), "migrations");
+    const db = await sqlite.open(dbfile);
+    await db.migrate({migrationsPath});
+
+    const sql = `
+        Insert Into "printer_log"
+        ("date",     "BK",
+        "C",
+        "M",
+        "Y",
+        "mb",
+        "ssbw",
+        "sscolor",
+        "dsbw",
+        "dscolor",
+        "copy_bw",
+        "copy_color",
+        "fax_bw",
+        "fax_color",
+        "scan_bw",
+        "scan_color",
+        "memPrint_bw",
+        "memPrint_color",
+        "print_bw",
+        "print_color")
+        Values (:date,     
+            :BK,
+            :C,
+            :M,
+            :Y,
+            :mb,
+            :ssbw,
+            :sscolor,
+            :dsbw,
+            :dscolor,
+            :copy_bw,
+            :copy_color,
+            :fax_bw,
+            :fax_color,
+            :scan_bw,
+            :scan_color,
+            :memPrint_bw,
+            :memPrint_color,
+            :print_bw,
+            :print_color)
+    `;
+    let obj = {
+        ":date": date.toISOString()
+    };
+    for (const key in inklevel){
+        obj[`:${key}`] = inklevel[key];
+    }
+    for (const key in pagehist){
+        obj[`:${key}`] = pagehist[key];
+    }
+    for (const func in pagesByFunction){
+        for (const colorOrBW in pagesByFunction[func]){
+            obj[`:${func}_${colorOrBW}`] = pagesByFunction[func][colorOrBW];
+        }
+    }
+    // console.log(obj);
+    await db.run(sql, obj);
 }
