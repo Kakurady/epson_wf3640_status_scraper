@@ -9,10 +9,12 @@ const maint_info_path = "/PRESENTATION/ADVANCED/INFO_MENTINFO/TOP";
 
 async function main() {
     try {
+        console.log(new Date());
         const { inklevel } = await readPrinterStatus();
-        const {pagehist} = await readPrinterMaintInfo();
-
-        console.log(inklevel, pagehist);
+        console.log(inklevel);
+        const { pagehist, pagesByFunction } = await readPrinterMaintInfo();
+        console.log(pagehist);
+        console.log(pagesByFunction);
     } catch (error) {
         throw error;
     }
@@ -59,7 +61,7 @@ async function readPrinterStatus() {
     return { tankinfo, inklevel };
 }
 
-async function readPrinterMaintInfo(){
+async function readPrinterMaintInfo() {
     const printer_maint_url = `${scheme}${host}${maint_info_path}`;
     const printer_maint_dom = await JSDOM.fromURL(printer_maint_url);
     const printer_maint_doc = printer_maint_dom.window.document;
@@ -75,15 +77,33 @@ async function readPrinterMaintInfo(){
         const dsbw = parseInt(row.children[3].textContent, 10);
         const dscolor = parseInt(row.children[4].textContent, 10);
 
-        return {label, ssbw, sscolor, dsbw, dscolor};
+        return { label, ssbw, sscolor, dsbw, dscolor };
     });
 
-    const pagehist = pagesBySize.reduce((acc, cur)=>({
+    const pagehist = pagesBySize.reduce((acc, cur) => ({
         ssbw: acc.ssbw + cur.ssbw,
         sscolor: acc.sscolor + cur.sscolor,
         dsbw: acc.dsbw + cur.dsbw,
         dscolor: acc.dscolor + cur.dscolor
     }));
 
-    return {pagehist};
+    const pagesByFunctionGroup = groups[2];
+    const pagesByFunctionKeys = pagesByFunctionGroup.querySelectorAll("dl>dt");
+    const pagesByFunctionValues = pagesByFunctionGroup.querySelectorAll("dl>dt+dd");
+
+    function grabValue(i){
+        return {
+            bw: parseInt(pagesByFunctionValues[i].textContent, 10),
+            color: parseInt(pagesByFunctionValues[i+1].textContent, 10)
+        }
+    }
+    const pagesByFunction = {
+        copy: grabValue(0),
+        fax: grabValue(2),
+        scan: grabValue(4),
+        memPrint: grabValue(6),
+        print: grabValue(8)
+    }
+
+    return { pagesBySize, pagehist, pagesByFunction };
 }
