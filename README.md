@@ -17,4 +17,4 @@ ISC
 
 See also
 --------
-* [https://github.com/Pix---/ioBroker.epson_stylus_px830]()
+* https://github.com/Pix---/ioBroker.epson_stylus_px830
