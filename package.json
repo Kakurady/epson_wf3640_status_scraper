@@ -1,7 +1,7 @@
 {
   "name": "wf3640_status_scraper",
   "version": "0.0.1",
-  "description": "",
+  "description": "Queries Epson WF-3640 printer for ink level and page count. Logs to SQLite database",
   "main": "index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
