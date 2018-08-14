@@ -5,16 +5,24 @@ import sqlite from 'sqlite';
 import _path from 'path';
 const pathjoin = _path.join;
 const dirname = _path.dirname;
+import _util from 'util';
+const promisify = _util.promisify;
+import _fs from 'fs';
+const readFileAsync = promisify(_fs.readFile);
 
 const scheme = "http://"
-const host = "";
+let host = "";
 const printer_status_path = "/PRESENTATION/ADVANCED/INFO_PRTINFO/TOP";
 const maint_info_path = "/PRESENTATION/ADVANCED/INFO_MENTINFO/TOP";
 
 const dbfile = process.argv[2] || "log.sqlite";
 
+main().catch(error => console.error(error));
+
 async function main() {
     try {
+        await loadConfig();
+
         console.log(new Date());
         const { inklevel } = await readPrinterStatus();
         console.log(inklevel);
@@ -27,10 +35,24 @@ async function main() {
         throw error;
     }
 }
-main().catch(error => console.error(error));
+
+async function loadConfig(){
+    try {
+        const configPath = pathjoin(dirname(process.argv[1]), "config.json");
+        const config = JSON.parse(await readFileAsync(configPath, {encoding: "utf-8"}));
+        if (config.host){
+            host = config.host;
+        } else {
+            throw new Error("please set host in config.json");
+        }
+    } catch (error) {
+        throw error;
+    }
+}
 
 async function readPrinterStatus() {
     const printer_status_url = `${scheme}${host}${printer_status_path}`;
+    // FIXME validate URL - create new URL object and check host is the same
     const printer_status_dom = await JSDOM.fromURL(printer_status_url);
     const printer_status_doc = printer_status_dom.window.document;
     const printer_tanks = printer_status_doc.querySelectorAll("li.tank");
@@ -71,6 +93,7 @@ async function readPrinterStatus() {
 
 async function readPrinterMaintInfo() {
     const printer_maint_url = `${scheme}${host}${maint_info_path}`;
+    // FIXME validate URL - create new URL object and check host is the same
     const printer_maint_dom = await JSDOM.fromURL(printer_maint_url);
     const printer_maint_doc = printer_maint_dom.window.document;
 
